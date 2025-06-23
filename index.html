@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Digital Twin</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="scene-container"></div>
+    
+    <div id="ui">
+        <div class="toolbar">
+            <button class="tool-btn" id="tree-tool" title="Plant Trees">
+                <span class="tool-icon">🌳</span>
+            </button>
+            <button class="tool-btn" id="sun-tool" title="Sunlight Simulation">
+                <span class="tool-icon">☀️</span>
+            </button>
+            <button class="tool-btn" id="location-tool" title="Location Settings">
+                <span class="tool-icon">📍</span>
+            </button>
+            <button class="tool-btn" id="settings-tool" title="Settings">
+                <span class="tool-icon">⚙️</span>
+            </button>
+        </div>
+        
+        <div class="panel">
+            <h2>Tree Planting</h2>
+            <div class="form-group">
+                <label for="tree-height">Height (m):</label>
+                <input type="number" id="tree-height" min="1" max="50" value="10">
+            </div>
+            <div class="form-group">
+                <label for="tree-height-min">Height Range (m):</label>
+                <div class="height-range">
+                    <input type="number" id="tree-height-min" min="1" max="50" value="5" placeholder="Min">
+                    <span>-</span>
+                    <input type="number" id="tree-height-max" min="1" max="50" value="15" placeholder="Max">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="tree-color">Color:</label>
+                <input type="color" id="tree-color" value="#228B22">
+            </div>
+            <div class="form-group">
+                <label>Planting Mode:</label>
+                <div class="planting-mode-buttons">
+                    <button class="mode-btn active" id="single-mode">Single Tree</button>
+                    <button class="mode-btn" id="brush-mode">Brush Tool</button>
+                </div>
+            </div>
+            <div class="form-group" id="brush-settings" style="display: none;">
+                <label for="brush-distance">Brush Distance (m):</label>
+                <input type="range" id="brush-distance" min="1" max="20" value="5" step="0.5">
+                <span id="brush-distance-value">5</span>
+            </div>
+            <button id="plant-tree">Plant Tree</button>
+        </div>
+
+        <div class="panel">
+            <h2>Sunlight Simulation</h2>
+            <div class="form-group">
+                <label for="month">Month:</label>
+                <input type="range" id="month" min="1" max="12" value="7">
+                <span id="month-value">7</span>
+            </div>
+            <div class="form-group">
+                <label for="day">Day:</label>
+                <input type="range" id="day" min="1" max="31" value="15">
+                <span id="day-value">15</span>
+            </div>
+            <div class="form-group">
+                <label for="hour">Hour:</label>
+                <input type="range" id="hour" min="0" max="23" value="12">
+                <span id="hour-value">12</span>
+            </div>
+            <div class="form-group">
+                <label for="minute">Minute:</label>
+                <input type="range" id="minute" min="0" max="59" value="0">
+                <span id="minute-value">0</span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Location</h2>
+            <div class="form-group">
+                <label for="latitude">Latitude:</label>
+                <input type="number" id="latitude" step="0.000001" value="45.5017">
+            </div>
+            <div class="form-group">
+                <label for="longitude">Longitude:</label>
+                <input type="number" id="longitude" step="0.000001" value="-73.5673">
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Scene Tools</h2>
+            <div class="tool-buttons">
+                <button id="draw-street">Draw Street</button>
+                <button id="draw-green">Draw Green Space</button>
+            </div>
+            <div class="export-import">
+                <button id="export-scene">Export Scene</button>
+                <input type="file" id="import-scene" accept=".json" style="display: none;">
+                <button id="import-button">Import Scene</button>
+            </div>
+        </div>
+
+        <div class="panel" id="camera-panel">
+            <h2>Camera Navigation</h2>
+            <div class="camera-controls">
+                <div class="camera-section">
+                    <h3>Movement</h3>
+                    <div class="camera-buttons">
+                        <button class="camera-btn" id="move-up" title="Move Up">⬆️</button>
+                        <div class="camera-row">
+                            <button class="camera-btn" id="move-left" title="Move Left">⬅️</button>
+                            <button class="camera-btn" id="move-down" title="Move Down">⬇️</button>
+                            <button class="camera-btn" id="move-right" title="Move Right">➡️</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="camera-section">
+                    <h3>Rotation</h3>
+                    <div class="camera-buttons">
+                        <button class="camera-btn" id="rotate-up" title="Rotate Up">🔄⬆️</button>
+                        <div class="camera-row">
+                            <button class="camera-btn" id="rotate-left" title="Rotate Left">🔄⬅️</button>
+                            <button class="camera-btn" id="rotate-down" title="Rotate Down">🔄⬇️</button>
+                            <button class="camera-btn" id="rotate-right" title="Rotate Right">🔄➡️</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="camera-section">
+                    <h3>Zoom</h3>
+                    <div class="camera-buttons">
+                        <button class="camera-btn" id="zoom-in" title="Zoom In">🔍➕</button>
+                        <button class="camera-btn" id="zoom-out" title="Zoom Out">🔍➖</button>
+                        <button class="camera-btn" id="zoom-extended" title="Zoom Extended">🔍⏫</button>
+                    </div>
+                </div>
+                
+                <div class="camera-section">
+                    <h3>Reset</h3>
+                    <div class="camera-buttons">
+                        <button class="camera-btn" id="reset-camera" title="Reset Camera">🏠</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Settings</h2>
+            <div class="form-group">
+                <label for="global-axis-toggle">Show Global Axis:</label>
+                <input type="checkbox" id="global-axis-toggle" checked>
+            </div>
+            <div class="form-group">
+                <label for="grid-toggle">Show Grid:</label>
+                <input type="checkbox" id="grid-toggle" checked>
+            </div>
+        </div>
+    </div>
+
+    <div id="compass">
+        <div class="compass-rose">
+            <div class="direction">N</div>
+            <div class="direction">E</div>
+            <div class="direction">S</div>
+            <div class="direction">W</div>
+        </div>
+    </div>
+
+    <!-- Three.js and dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <!-- Main application script -->
+    <script src="app.js"></script>
+</body>
+</html> 

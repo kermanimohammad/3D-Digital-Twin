@@ -1,0 +1,341 @@
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+}
+
+#scene-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+#ui {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 300px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    z-index: 2;
+}
+
+.panel {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.panel h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+    color: #333;
+}
+
+.form-group {
+    margin-bottom: 12px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #555;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+/* Make color picker taller */
+.form-group input[type="color"] {
+    height: 50px;
+    padding: 4px;
+    cursor: pointer;
+}
+
+/* Brush tool styling */
+.form-group select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+    background: white;
+}
+
+.form-group input[type="range"] {
+    width: 70%;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+.form-group span[id$="-value"] {
+    display: inline-block;
+    width: 25%;
+    text-align: right;
+    font-weight: bold;
+    color: #333;
+}
+
+button {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 5px 0;
+    width: 100%;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background: #45a049;
+}
+
+/* Toggle button active state */
+button.active {
+    background: #ff6b6b;
+}
+
+button.active:hover {
+    background: #ff5252;
+}
+
+.tool-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.export-import {
+    margin-top: 15px;
+}
+
+#compass {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    width: 100px;
+    height: 100px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.compass-rose {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    border: 2px solid #333;
+    border-radius: 50%;
+}
+
+.direction {
+    position: absolute;
+    font-weight: bold;
+    color: #333;
+}
+
+.direction:nth-child(1) { top: 5px; left: 50%; transform: translateX(-50%); } /* N */
+.direction:nth-child(2) { right: 5px; top: 50%; transform: translateY(-50%); } /* E */
+.direction:nth-child(3) { bottom: 5px; left: 50%; transform: translateX(-50%); } /* S */
+.direction:nth-child(4) { left: 5px; top: 50%; transform: translateY(-50%); } /* W */
+
+/* Slider value display */
+input[type="range"] {
+    width: 80%;
+    margin-right: 10px;
+}
+
+span[id$="-value"] {
+    display: inline-block;
+    width: 20px;
+    text-align: right;
+}
+
+/* Tree editor specific styles */
+#tree-editor {
+    background: #f8f9fa;
+}
+
+.edit-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+#delete-tree {
+    background: #dc3545;
+}
+
+#delete-tree:hover {
+    background: #c82333;
+}
+
+.toolbar {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.tool-btn {
+    flex: 1;
+    background: white;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+}
+
+.tool-btn:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.tool-btn.active {
+    background: #007bff;
+    border-color: #0056b3;
+    color: white;
+}
+
+.tool-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+/* Camera Navigation Panel */
+.camera-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.camera-section {
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 10px;
+    background: #f8f9fa;
+}
+
+.camera-section h3 {
+    margin: 0 0 10px 0;
+    font-size: 0.9em;
+    color: #495057;
+    text-align: center;
+}
+
+.camera-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.camera-row {
+    display: flex;
+    gap: 5px;
+}
+
+.camera-btn {
+    width: 40px;
+    height: 40px;
+    background: white;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    padding: 0;
+    margin: 0;
+}
+
+.camera-btn:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+    transform: scale(1.05);
+}
+
+.camera-btn:active {
+    transform: scale(0.95);
+}
+
+/* Planting mode buttons */
+.planting-mode-buttons {
+    display: flex;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.mode-btn {
+    flex: 1;
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    color: #495057;
+}
+
+.mode-btn:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.mode-btn.active {
+    background: #007bff;
+    border-color: #0056b3;
+    color: white;
+}
+
+/* Height range styling */
+.height-range {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.height-range input {
+    flex: 1;
+    width: auto;
+}
+
+.height-range span {
+    font-weight: bold;
+    color: #666;
+    font-size: 16px;
+} 
