@@ -1,6 +1,8 @@
 // Scene setup
 let scene, camera, renderer, controls;
 let ground, buildings = [], trees = [];
+let stlObjects = []; // Array to store imported STL objects
+let gridHelper = null; // Track the grid helper
 let isDrawingStreet = false;
 let isDrawingGreen = false;
 let isPlantingTree = false; // New variable to track tree planting mode
@@ -21,10 +23,10 @@ function init() {
     // Create scene
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87CEEB); // Sky blue background
-    scene.fog = new THREE.FogExp2(0x87CEEB, 0.002); // Add fog for depth
+    scene.fog = new THREE.FogExp2(0x87CEEB, 0.0008); // Add fog for depth
 
     // Create camera
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100000);
     camera.position.set(50, 50, 50);
 
     // Create renderer with enhanced settings
@@ -51,8 +53,8 @@ function init() {
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent going below ground
-    controls.minDistance = 1;
-    controls.maxDistance = 1000;
+    controls.minDistance = 0.5;
+    controls.maxDistance = 100000;
     controls.zoomSpeed = 1; // Increase zoom sensitivity
     controls.mouseButtons = {
         LEFT: THREE.MOUSE.PAN,
@@ -101,7 +103,7 @@ function init() {
     scene.add(ground);
 
     // Add infinite grid
-    const gridHelper = new THREE.GridHelper(500, 100, 0x444444, 0x888888);
+    gridHelper = new THREE.GridHelper(500, 100, 0x444444, 0x888888);
     gridHelper.position.y = 0.1; // Slightly above ground to avoid z-fighting
     scene.add(gridHelper);
 
@@ -548,6 +550,12 @@ function switchTool(activeToolId) {
         } else if (activeToolId === 'location-tool') {
             // Show only location panel
             panel.style.display = panelTitle.includes('location') ? 'block' : 'none';
+        } else if (activeToolId === 'stl-tool') {
+            // Show only STL import/export panel
+            panel.style.display = panelTitle.includes('stl') ? 'block' : 'none';
+        } else if (activeToolId === 'camera-tool') {
+            // Show only camera navigation panel
+            panel.style.display = panelTitle.includes('camera') ? 'block' : 'none';
         } else if (activeToolId === 'settings-tool') {
             // Show only settings panel
             panel.style.display = panelTitle.includes('settings') ? 'block' : 'none';
@@ -646,6 +654,31 @@ function initUIControls() {
         });
     });
     
+    // Fog controls
+    document.getElementById('fog-toggle').addEventListener('change', (e) => {
+        if (e.target.checked) {
+            // Enable fog
+            const fogDistance = parseFloat(document.getElementById('fog-distance').value);
+            scene.fog = new THREE.FogExp2(0x87CEEB, fogDistance);
+            console.log('🌫️ Fog enabled with distance:', fogDistance);
+        } else {
+            // Disable fog
+            scene.fog = null;
+            console.log('🌫️ Fog disabled');
+        }
+    });
+    
+    document.getElementById('fog-distance').addEventListener('input', (e) => {
+        const fogDistance = parseFloat(e.target.value);
+        document.getElementById('fog-distance-value').textContent = fogDistance;
+        
+        // Update fog if it's enabled
+        if (document.getElementById('fog-toggle').checked) {
+            scene.fog = new THREE.FogExp2(0x87CEEB, fogDistance);
+            console.log('🌫️ Fog distance updated:', fogDistance);
+        }
+    });
+    
     // Drawing tools (kept for compatibility)
     document.getElementById('draw-street').addEventListener('click', () => {
         isDrawingStreet = true;
@@ -738,6 +771,142 @@ function initUIControls() {
             };
             reader.readAsText(file);
         }
+    });
+    
+    // STL Import/Export controls
+    document.getElementById('import-stl').addEventListener('click', () => {
+        document.getElementById('stl-file-input').click();
+    });
+    
+    document.getElementById('stl-file-input').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            importSTL(file);
+        }
+    });
+    
+    document.getElementById('export-stl').addEventListener('click', () => {
+        exportSTL();
+    });
+    
+    // STL settings controls
+    document.getElementById('stl-scale').addEventListener('input', (e) => {
+        // Update scale for future imports
+        console.log('STL scale updated:', e.target.value);
+    });
+    
+    document.getElementById('stl-color').addEventListener('input', (e) => {
+        // Update color for future imports
+        console.log('STL color updated:', e.target.value);
+    });
+    
+    // STL rotation controls
+    ['stl-rotation-x', 'stl-rotation-y', 'stl-rotation-z'].forEach(id => {
+        const slider = document.getElementById(id);
+        const numberInput = document.getElementById(id + '-number');
+        
+        // Slider event listener
+        slider.addEventListener('input', (e) => {
+            const value = e.target.value;
+            numberInput.value = value;
+            
+            // Apply rotation to existing STL objects
+            updateSTLRotation();
+            
+            console.log('STL rotation updated:', id, value + '°');
+        });
+        
+        // Number input event listener
+        numberInput.addEventListener('input', (e) => {
+            let value = parseFloat(e.target.value);
+            
+            // No range validation - allow unlimited movement
+            slider.value = value;
+            
+            // Apply rotation to existing STL objects
+            updateSTLRotation();
+            
+            console.log('STL rotation updated:', id, value + '°');
+        });
+    });
+    
+    // STL position controls
+    ['stl-position-x', 'stl-position-y', 'stl-position-z'].forEach(id => {
+        const numberInput = document.getElementById(id + '-number');
+        
+        // Number input event listener
+        numberInput.addEventListener('input', (e) => {
+            let value = parseFloat(e.target.value);
+            
+            // Apply position to existing STL objects
+            updateSTLPosition();
+            
+            console.log('STL position updated:', id, value);
+        });
+    });
+    
+    // Camera navigation controls
+    document.getElementById('move-up').addEventListener('click', () => {
+        camera.position.y += 10;
+        console.log('📷 Camera moved up');
+    });
+    
+    document.getElementById('move-down').addEventListener('click', () => {
+        camera.position.y -= 10;
+        console.log('📷 Camera moved down');
+    });
+    
+    document.getElementById('move-left').addEventListener('click', () => {
+        camera.position.x -= 10;
+        console.log('📷 Camera moved left');
+    });
+    
+    document.getElementById('move-right').addEventListener('click', () => {
+        camera.position.x += 10;
+        console.log('📷 Camera moved right');
+    });
+    
+    document.getElementById('rotate-up').addEventListener('click', () => {
+        camera.rotation.x -= 0.1;
+        console.log('📷 Camera rotated up');
+    });
+    
+    document.getElementById('rotate-down').addEventListener('click', () => {
+        camera.rotation.x += 0.1;
+        console.log('📷 Camera rotated down');
+    });
+    
+    document.getElementById('rotate-left').addEventListener('click', () => {
+        camera.rotation.y -= 0.1;
+        console.log('📷 Camera rotated left');
+    });
+    
+    document.getElementById('rotate-right').addEventListener('click', () => {
+        camera.rotation.y += 0.1;
+        console.log('📷 Camera rotated right');
+    });
+    
+    document.getElementById('zoom-in').addEventListener('click', () => {
+        camera.position.multiplyScalar(0.9);
+        console.log('📷 Camera zoomed in');
+    });
+    
+    document.getElementById('zoom-out').addEventListener('click', () => {
+        camera.position.multiplyScalar(1.1);
+        console.log('📷 Camera zoomed out');
+    });
+    
+    document.getElementById('zoom-extended').addEventListener('click', () => {
+        camera.position.set(100, 100, 100);
+        camera.lookAt(0, 0, 0);
+        console.log('📷 Camera zoomed to extended view');
+    });
+    
+    document.getElementById('reset-camera').addEventListener('click', () => {
+        camera.position.set(50, 50, 50);
+        camera.rotation.set(0, 0, 0);
+        camera.lookAt(0, 0, 0);
+        console.log('📷 Camera reset to default position');
     });
 }
 
@@ -858,6 +1027,819 @@ function onRightClick(event) {
         scene.remove(tree);
         trees = trees.filter(t => t !== tree);
     }
+}
+
+// STL Import/Export Functions
+function importSTL(file) {
+    // Show loading overlay
+    showLoading('Scanning STL file...');
+    
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        try {
+            const content = event.target.result;
+            
+            // Check if it's an ASCII STL file
+            if (typeof content === 'string' && content.startsWith('solid')) {
+                // First, quickly scan for solids
+                const solids = scanSTLSolids(content);
+                console.log(`Found ${solids.length} solids in STL file:`, solids.map(s => s.name));
+                
+                // Show solids list to user
+                showSolidsList(solids, content, file.name);
+            } else {
+                // Parse binary STL file
+                parseBinarySTL(content, file.name);
+            }
+        } catch (error) {
+            console.error('Error importing STL file:', error);
+            alert('Error importing STL file. Please check if the file is valid.');
+            hideLoading();
+        }
+    };
+    
+    reader.onerror = function() {
+        console.error('Error reading STL file');
+        alert('Error reading STL file. Please try again.');
+        hideLoading();
+    };
+    
+    reader.readAsText(file); // Read as text for ASCII parsing
+}
+
+// Fast function to scan STL file and list all solids
+function scanSTLSolids(content) {
+    const lines = content.split('\n');
+    const solids = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        if (line.startsWith('solid ')) {
+            // Found a solid - extract name
+            const solidName = line.substring(6).trim(); // Remove 'solid ' prefix
+            
+            // Count facets for this solid
+            let facetCount = 0;
+            let j = i + 1;
+            while (j < lines.length && !lines[j].trim().startsWith('endsolid')) {
+                if (lines[j].trim().startsWith('facet normal')) {
+                    facetCount++;
+                }
+                j++;
+            }
+            
+            solids.push({
+                name: solidName,
+                facetCount: facetCount,
+                startLine: i,
+                endLine: j
+            });
+            
+            console.log(`Found solid: ${solidName} with ${facetCount} facets`);
+        }
+    }
+    
+    return solids;
+}
+
+// Function to show solids list to user
+function showSolidsList(solids, content, fileName) {
+    hideLoading();
+    
+    // Create a modal or update UI to show solids
+    const list = document.getElementById('stl-objects-list');
+    
+    if (solids.length === 0) {
+        list.innerHTML = '<p>No solids found in STL file</p>';
+        return;
+    }
+    
+    // Group solids by category
+    const categories = groupSolidsByCategory(solids);
+    
+    list.innerHTML = '<h4>Solids found in STL file (grouped by category):</h4>';
+    
+    // Display each category
+    Object.keys(categories).forEach(categoryName => {
+        const category = categories[categoryName];
+        
+        const categoryDiv = document.createElement('div');
+        categoryDiv.className = 'stl-category';
+        categoryDiv.innerHTML = `
+            <div class="category-header" onclick="toggleCategory('${categoryName}')">
+                <div class="category-info">
+                    <span class="category-toggle">▶</span>
+                    <span class="category-name">${categoryName}</span>
+                    <span class="category-count">(${category.solids.length} objects)</span>
+                </div>
+                <div class="category-actions" onclick="event.stopPropagation()">
+                    <button onclick="loadCategory('${categoryName}', '${fileName}')" class="load-category-btn">Load Category</button>
+                </div>
+            </div>
+            <div class="category-solids" id="category-${categoryName}" style="display: none;">
+                ${category.solids.map((solid, index) => `
+                    <div class="stl-solid-item">
+                        <div class="solid-info">
+                            <span class="solid-name">${solid.name}</span>
+                            <span class="solid-facets">(${solid.facetCount} facets)</span>
+                        </div>
+                        <div class="solid-actions">
+                            <button onclick="loadSingleSolid(${solid.originalIndex}, '${fileName}')" class="load-btn">Load</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        list.appendChild(categoryDiv);
+    });
+    
+    // Add "Load All" button at the top
+    const loadAllDiv = document.createElement('div');
+    loadAllDiv.className = 'load-all-section';
+    loadAllDiv.innerHTML = `
+        <button onclick="loadAllSolids('${fileName}')" class="load-all-btn">Load All Solids (${solids.length} total)</button>
+    `;
+    list.insertBefore(loadAllDiv, list.firstChild);
+    
+    // Show category controls
+    const categoryControls = document.querySelector('.category-controls');
+    if (categoryControls) {
+        categoryControls.style.display = 'flex';
+    }
+    
+    // Store solids data for later loading
+    window.currentSTLSolids = {
+        solids: solids,
+        content: content,
+        fileName: fileName,
+        categories: categories
+    };
+    
+    console.log(`📋 Listed ${solids.length} solids in ${Object.keys(categories).length} categories from ${fileName}`);
+}
+
+// Function to toggle category visibility
+function toggleCategory(categoryName) {
+    const categorySolids = document.getElementById(`category-${categoryName}`);
+    const categoryHeader = categorySolids.previousElementSibling;
+    const toggleIcon = categoryHeader.querySelector('.category-toggle');
+    
+    if (categorySolids.style.display === 'none') {
+        // Show category
+        categorySolids.style.display = 'block';
+        toggleIcon.textContent = '▼';
+        categoryHeader.classList.add('expanded');
+    } else {
+        // Hide category
+        categorySolids.style.display = 'none';
+        toggleIcon.textContent = '▶';
+        categoryHeader.classList.remove('expanded');
+    }
+}
+
+// Function to expand all categories
+function expandAllCategories() {
+    const categories = document.querySelectorAll('.stl-category');
+    categories.forEach(category => {
+        const categorySolids = category.querySelector('.category-solids');
+        const categoryHeader = category.querySelector('.category-header');
+        const toggleIcon = categoryHeader.querySelector('.category-toggle');
+        
+        categorySolids.style.display = 'block';
+        toggleIcon.textContent = '▼';
+        categoryHeader.classList.add('expanded');
+    });
+}
+
+// Function to collapse all categories
+function collapseAllCategories() {
+    const categories = document.querySelectorAll('.stl-category');
+    categories.forEach(category => {
+        const categorySolids = category.querySelector('.category-solids');
+        const categoryHeader = category.querySelector('.category-header');
+        const toggleIcon = categoryHeader.querySelector('.category-toggle');
+        
+        categorySolids.style.display = 'none';
+        toggleIcon.textContent = '▶';
+        categoryHeader.classList.remove('expanded');
+    });
+}
+
+// Function to group solids by category based on their names
+function groupSolidsByCategory(solids) {
+    const categories = {};
+    
+    solids.forEach((solid, index) => {
+        const name = solid.name.toLowerCase();
+        let category = 'Other'; // Default category
+        
+        // Determine category based on name patterns
+        if (name.includes('building') || name.includes('house') || name.includes('structure') || 
+            name.includes('tower') || name.includes('skyscraper') || name.includes('office') ||
+            name.includes('apartment') || name.includes('residential') || name.includes('commercial')) {
+            category = 'Buildings';
+        } else if (name.includes('tree') || name.includes('plant') || name.includes('vegetation') ||
+                   name.includes('forest') || name.includes('garden') || name.includes('park') ||
+                   name.includes('bush') || name.includes('shrub')) {
+            category = 'Vegetation';
+        } else if (name.includes('road') || name.includes('street') || name.includes('path') ||
+                   name.includes('highway') || name.includes('avenue') || name.includes('lane') ||
+                   name.includes('drive') || name.includes('way') || name.includes('bridge')) {
+            category = 'Roads & Infrastructure';
+        } else if (name.includes('car') || name.includes('vehicle') || name.includes('transport') ||
+                   name.includes('bus') || name.includes('truck') || name.includes('motorcycle') ||
+                   name.includes('bicycle') || name.includes('train')) {
+            category = 'Vehicles';
+        } else if (name.includes('furniture') || name.includes('chair') || name.includes('table') ||
+                   name.includes('desk') || name.includes('bed') || name.includes('sofa') ||
+                   name.includes('cabinet') || name.includes('shelf')) {
+            category = 'Furniture';
+        } else if (name.includes('light') || name.includes('lamp') || name.includes('lighting') ||
+                   name.includes('streetlight') || name.includes('bulb') || name.includes('fixture')) {
+            category = 'Lighting';
+        } else if (name.includes('water') || name.includes('river') || name.includes('lake') ||
+                   name.includes('pond') || name.includes('fountain') || name.includes('pool')) {
+            category = 'Water Features';
+        } else if (name.includes('terrain') || name.includes('ground') || name.includes('landscape') ||
+                   name.includes('mountain') || name.includes('hill') || name.includes('valley')) {
+            category = 'Terrain';
+        } else if (name.includes('sign') || name.includes('billboard') || name.includes('advertisement') ||
+                   name.includes('traffic') || name.includes('signal')) {
+            category = 'Signs & Signals';
+        } else if (name.includes('bench') || name.includes('seat') || name.includes('rest') ||
+                   name.includes('playground') || name.includes('equipment')) {
+            category = 'Street Furniture';
+        } else if (name.includes('wall') || name.includes('fence') || name.includes('barrier') ||
+                   name.includes('gate') || name.includes('door')) {
+            category = 'Walls & Barriers';
+        }
+        
+        // Add to category
+        if (!categories[category]) {
+            categories[category] = {
+                name: category,
+                solids: []
+            };
+        }
+        
+        // Store original index for loading
+        solid.originalIndex = index;
+        categories[category].solids.push(solid);
+    });
+    
+    return categories;
+}
+
+// Function to load a specific category
+function loadCategory(categoryName, fileName) {
+    if (!window.currentSTLSolids || !window.currentSTLSolids.categories) {
+        alert('No STL file data available');
+        return;
+    }
+    
+    const category = window.currentSTLSolids.categories[categoryName];
+    if (!category) {
+        alert('Category not found');
+        return;
+    }
+    
+    showLoading(`Loading category: ${categoryName} (${category.solids.length} objects)...`);
+    
+    // Reset scene first if it's the first category being loaded
+    if (stlObjects.length === 0) {
+        resetScene();
+    }
+    
+    // Parse all solids in this category
+    category.solids.forEach((solid, index) => {
+        const solidContent = extractSolidContent(window.currentSTLSolids.content, solid);
+        parseSingleSolid(solidContent, solid.name, fileName);
+    });
+    
+    hideLoading();
+    console.log(`📁 Loaded category "${categoryName}" with ${category.solids.length} objects from ${fileName}`);
+}
+
+// Function to load a single solid
+function loadSingleSolid(solidIndex, fileName) {
+    if (!window.currentSTLSolids) {
+        alert('No STL file data available');
+        return;
+    }
+    
+    const { solids, content } = window.currentSTLSolids;
+    const solid = solids[solidIndex];
+    
+    if (!solid) {
+        alert('Solid not found');
+        return;
+    }
+    
+    showLoading(`Loading solid: ${solid.name}...`);
+    
+    // Parse only this solid
+    const solidContent = extractSolidContent(content, solid);
+    parseSingleSolid(solidContent, solid.name, fileName);
+}
+
+// Function to load all solids
+function loadAllSolids(fileName) {
+    if (!window.currentSTLSolids) {
+        alert('No STL file data available');
+        return;
+    }
+    
+    const { solids, content } = window.currentSTLSolids;
+    
+    showLoading(`Loading all ${solids.length} solids...`);
+    
+    // Reset scene first
+    resetScene();
+    
+    // Parse all solids
+    solids.forEach((solid, index) => {
+        const solidContent = extractSolidContent(content, solid);
+        parseSingleSolid(solidContent, solid.name, fileName);
+    });
+    
+    hideLoading();
+    console.log(`📁 Loaded all ${solids.length} solids from ${fileName}`);
+}
+
+// Function to extract content for a single solid
+function extractSolidContent(fullContent, solid) {
+    const lines = fullContent.split('\n');
+    const solidLines = lines.slice(solid.startLine, solid.endLine + 1);
+    return solidLines.join('\n');
+}
+
+// Function to parse a single solid
+function parseSingleSolid(content, solidName, fileName) {
+    const lines = content.split('\n');
+    const facets = [];
+    let currentFacet = null;
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        if (line.startsWith('facet normal')) {
+            // Start of a facet
+            const normalMatch = line.match(/facet normal ([\d.-]+) ([\d.-]+) ([\d.-]+)/);
+            if (normalMatch) {
+                const normal = {
+                    x: parseFloat(normalMatch[1]),
+                    y: parseFloat(normalMatch[2]),
+                    z: parseFloat(normalMatch[3])
+                };
+                currentFacet = { normal, vertices: [] };
+            }
+            
+        } else if (line.startsWith('vertex ')) {
+            // Vertex data
+            const vertexMatch = line.match(/vertex ([\d.-]+) ([\d.-]+) ([\d.-]+)/);
+            if (vertexMatch && currentFacet) {
+                const vertex = {
+                    x: parseFloat(vertexMatch[1]),
+                    y: parseFloat(vertexMatch[2]),
+                    z: parseFloat(vertexMatch[3])
+                };
+                currentFacet.vertices.push(vertex);
+            }
+            
+        } else if (line === 'endfacet') {
+            // End of facet
+            if (currentFacet) {
+                facets.push(currentFacet);
+                currentFacet = null;
+            }
+        }
+    }
+    
+    // Create mesh from facets
+    createSolidMeshFromFacets(facets, solidName, fileName);
+}
+
+// Function to create mesh from facets data
+function createSolidMeshFromFacets(facets, solidName, fileName) {
+    // Convert facets to Three.js geometry
+    const geometry = new THREE.BufferGeometry();
+    const vertices = [];
+    const normals = [];
+    
+    facets.forEach(facet => {
+        if (facet.vertices.length >= 3) {
+            // Add vertices for triangle
+            facet.vertices.forEach(vertex => {
+                vertices.push(vertex.x, vertex.y, vertex.z);
+            });
+            
+            // Add normal for each vertex
+            for (let i = 0; i < 3; i++) {
+                normals.push(facet.normal.x, facet.normal.y, facet.normal.z);
+            }
+        }
+    });
+    
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    
+    const scale = parseFloat(document.getElementById('stl-scale').value);
+    const color = document.getElementById('stl-color').value;
+    
+    const material = new THREE.MeshStandardMaterial({ 
+        color: color,
+        roughness: 0.7,
+        metalness: 0.2,
+        side: THREE.DoubleSide
+    });
+    
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.scale.setScalar(scale);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    
+    // Get rotation values from UI (convert degrees to radians)
+    const rotationX = parseFloat(document.getElementById('stl-rotation-x').value) * Math.PI / 180;
+    const rotationY = parseFloat(document.getElementById('stl-rotation-y').value) * Math.PI / 180;
+    const rotationZ = parseFloat(document.getElementById('stl-rotation-z').value) * Math.PI / 180;
+    
+    // Apply rotations FIRST
+    mesh.rotation.set(rotationX, rotationY, rotationZ);
+    
+    // Now calculate bounding box AFTER rotation
+    geometry.computeBoundingBox();
+    const boundingBox = geometry.boundingBox;
+    const center = boundingBox.getCenter(new THREE.Vector3());
+    
+    // Calculate offset to center the model (negative of the center point)
+    const offset = center.clone().multiplyScalar(-scale);
+    mesh.position.copy(offset);
+    
+    // For import: always position at (0,0,0) with bounding box center at X=0, Z=0
+    // Calculate Y size of the model's bounding box AFTER rotation
+    const ySize = (boundingBox.max.y - boundingBox.min.y) * scale;
+    
+    // Position: X/Z centers at 0, Y center at 0
+    mesh.position.add(new THREE.Vector3(0, 0, 0));
+    
+    // Add to scene and track
+    scene.add(mesh);
+    stlObjects.push({
+        mesh: mesh,
+        name: solidName, // Use the solid name from the STL file
+        originalGeometry: geometry
+    });
+    
+    updateSTLObjectsList();
+    console.log(`📁 Solid "${solidName}" imported from ${fileName}`);
+}
+
+// Function to parse binary STL files (fallback)
+function parseBinarySTL(content, fileName) {
+    const loader = new THREE.STLLoader();
+    const geometry = loader.parse(content);
+    
+    const scale = parseFloat(document.getElementById('stl-scale').value);
+    const color = document.getElementById('stl-color').value;
+    
+    const material = new THREE.MeshStandardMaterial({ 
+        color: color,
+        roughness: 0.7,
+        metalness: 0.2,
+        side: THREE.DoubleSide
+    });
+    
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.scale.setScalar(scale);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    
+    // Get rotation values from UI (convert degrees to radians)
+    const rotationX = parseFloat(document.getElementById('stl-rotation-x').value) * Math.PI / 180;
+    const rotationY = parseFloat(document.getElementById('stl-rotation-y').value) * Math.PI / 180;
+    const rotationZ = parseFloat(document.getElementById('stl-rotation-z').value) * Math.PI / 180;
+    
+    // Apply rotations FIRST
+    mesh.rotation.set(rotationX, rotationY, rotationZ);
+    
+    // Now calculate bounding box AFTER rotation
+    geometry.computeBoundingBox();
+    const boundingBox = geometry.boundingBox;
+    const center = boundingBox.getCenter(new THREE.Vector3());
+    
+    // Calculate offset to center the model (negative of the center point)
+    const offset = center.clone().multiplyScalar(-scale);
+    mesh.position.copy(offset);
+    
+    // For import: always position at (0,0,0) with bounding box center at X=0, Z=0
+    // Calculate Y size of the model's bounding box AFTER rotation
+    const ySize = (boundingBox.max.y - boundingBox.min.y) * scale;
+    
+    // Position: X/Z centers at 0, Y center at 0
+    mesh.position.add(new THREE.Vector3(0, 0, 0));
+    
+    // Add to scene and track
+    scene.add(mesh);
+    stlObjects.push({
+        mesh: mesh,
+        name: fileName, // Use filename for binary STL
+        originalGeometry: geometry
+    });
+    
+    updateSTLObjectsList();
+    console.log('📁 Binary STL file imported:', fileName);
+    hideLoading();
+}
+
+function updateSTLObjectsList() {
+    const list = document.getElementById('stl-objects-list');
+    
+    if (stlObjects.length === 0) {
+        list.innerHTML = '<p>No STL objects imported yet</p>';
+        // Also update layers list
+        updateSTLLayersList();
+        return;
+    }
+    
+    list.innerHTML = '';
+    stlObjects.forEach((obj, index) => {
+        const item = document.createElement('div');
+        item.className = 'stl-object-item';
+        item.innerHTML = `
+            <span>${obj.name}</span>
+            <button onclick="removeSTLObject(${index})" class="remove-btn">🗑️</button>
+        `;
+        list.appendChild(item);
+    });
+    
+    // Update layers list when objects change
+    updateSTLLayersList();
+}
+
+function removeSTLObject(index) {
+    if (index >= 0 && index < stlObjects.length) {
+        const obj = stlObjects[index];
+        scene.remove(obj.mesh);
+        stlObjects.splice(index, 1);
+        updateSTLObjectsList();
+        console.log('🗑️ STL object removed');
+    }
+}
+
+// Function to update rotation of existing STL objects
+function updateSTLRotation() {
+    if (stlObjects.length === 0) return;
+    
+    // Get rotation values from UI (convert degrees to radians)
+    const rotationX = parseFloat(document.getElementById('stl-rotation-x').value) * Math.PI / 180;
+    const rotationY = parseFloat(document.getElementById('stl-rotation-y').value) * Math.PI / 180;
+    const rotationZ = parseFloat(document.getElementById('stl-rotation-z').value) * Math.PI / 180;
+    
+    // Apply rotation to all STL objects
+    stlObjects.forEach(obj => {
+        obj.mesh.rotation.set(rotationX, rotationY, rotationZ);
+    });
+    
+    console.log('🔄 STL rotation applied to', stlObjects.length, 'object(s)');
+}
+
+// Function to update position of existing STL objects
+function updateSTLPosition() {
+    if (stlObjects.length === 0) return;
+    
+    // Get position values from UI
+    const positionX = parseFloat(document.getElementById('stl-position-x-number').value);
+    const positionY = parseFloat(document.getElementById('stl-position-y-number').value);
+    const positionZ = parseFloat(document.getElementById('stl-position-z-number').value);
+    
+    // Apply position to all STL objects (X/Z center, Y bottom)
+    stlObjects.forEach(obj => {
+        // Get current scale and rotation
+        const scale = obj.mesh.scale.x; // Assuming uniform scaling
+        const rotation = obj.mesh.rotation.clone();
+        
+        // Create a temporary geometry to calculate bounding box after rotation
+        const geometry = obj.originalGeometry.clone();
+        geometry.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(rotation));
+        geometry.computeBoundingBox();
+        const boundingBox = geometry.boundingBox;
+        const center = boundingBox.getCenter(new THREE.Vector3());
+        
+        // Calculate the offset needed to center the model
+        const offset = center.clone().multiplyScalar(-scale);
+        
+        // For X and Z: center the bounding box at specified position
+        // For Y: position center at specified Y
+        const ySize = (boundingBox.max.y - boundingBox.min.y) * scale; // Y size of bounding box
+        
+        // Set position: X/Z centered, Y center at specified position
+        obj.mesh.position.set(positionX, positionY, positionZ);
+        
+        // Apply the centering offset
+        obj.mesh.position.add(offset);
+    });
+    
+    console.log('🔄 STL position applied to', stlObjects.length, 'object(s)');
+}
+
+// Function to analyze STL objects and categorize them by name
+function analyzeSTLCategories() {
+    const categories = {};
+    
+    stlObjects.forEach(obj => {
+        const name = obj.name.toLowerCase();
+        let category = 'Other'; // Default category
+        
+        // Determine category based on name
+        if (name.includes('building') || name.includes('house') || name.includes('structure')) {
+            category = 'Building';
+        } else if (name.includes('tree') || name.includes('plant') || name.includes('vegetation')) {
+            category = 'Tree';
+        } else if (name.includes('road') || name.includes('street') || name.includes('path')) {
+            category = 'Road';
+        } else if (name.includes('car') || name.includes('vehicle') || name.includes('transport')) {
+            category = 'Vehicle';
+        } else if (name.includes('furniture') || name.includes('chair') || name.includes('table')) {
+            category = 'Furniture';
+        } else if (name.includes('light') || name.includes('lamp') || name.includes('lighting')) {
+            category = 'Lighting';
+        } else if (name.includes('water') || name.includes('river') || name.includes('lake')) {
+            category = 'Water';
+        } else if (name.includes('terrain') || name.includes('ground') || name.includes('landscape')) {
+            category = 'Terrain';
+        }
+        
+        // Add to category
+        if (!categories[category]) {
+            categories[category] = {
+                name: category,
+                objects: [],
+                visible: true
+            };
+        }
+        categories[category].objects.push(obj);
+    });
+    
+    return Object.values(categories);
+}
+
+// Function to update STL layers list (now categories)
+function updateSTLLayersList() {
+    const list = document.getElementById('stl-layers-list');
+    
+    if (stlObjects.length === 0) {
+        list.innerHTML = '<p>No categories detected</p>';
+        return;
+    }
+    
+    // Analyze categories from STL objects
+    const categories = analyzeSTLCategories();
+    
+    if (categories.length === 0) {
+        list.innerHTML = '<p>No categories found</p>';
+        return;
+    }
+    
+    list.innerHTML = '';
+    categories.forEach((category, index) => {
+        const item = document.createElement('div');
+        item.className = 'layer-item';
+        item.innerHTML = `
+            <span>${category.name} (${category.objects.length} objects)</span>
+            <button onclick="toggleSTLCategory(${index})" class="layer-toggle ${category.visible ? '' : 'hidden'}" id="category-toggle-${index}">
+                ${category.visible ? 'Show' : 'Hide'}
+            </button>
+        `;
+        list.appendChild(item);
+    });
+    
+    // Store categories data for later use
+    if (stlObjects.length > 0) {
+        stlObjects[0].categories = categories;
+    }
+}
+
+// Function to toggle STL category visibility
+function toggleSTLCategory(categoryIndex) {
+    if (stlObjects.length === 0 || !stlObjects[0].categories) return;
+    
+    const categories = stlObjects[0].categories;
+    if (categoryIndex >= 0 && categoryIndex < categories.length) {
+        const category = categories[categoryIndex];
+        category.visible = !category.visible;
+        
+        // Update visibility of all objects in this category
+        category.objects.forEach(obj => {
+            obj.mesh.visible = category.visible;
+        });
+        
+        // Update button appearance
+        const button = document.getElementById(`category-toggle-${categoryIndex}`);
+        if (button) {
+            button.textContent = category.visible ? 'Show' : 'Hide';
+            button.classList.toggle('hidden', !category.visible);
+        }
+        
+        console.log(`Category "${category.name}" ${category.visible ? 'shown' : 'hidden'} (${category.objects.length} objects)`);
+    }
+}
+
+// Loading overlay functions
+function showLoading(message = 'Processing STL file...') {
+    document.getElementById('loading-overlay').style.display = 'flex';
+    document.querySelector('.loading-text').textContent = message;
+}
+
+function hideLoading() {
+    document.getElementById('loading-overlay').style.display = 'none';
+}
+
+// Function to reset the scene
+function resetScene() {
+    // Clear trees
+    trees.forEach(tree => scene.remove(tree));
+    trees = [];
+    
+    // Clear buildings
+    buildings.forEach(building => scene.remove(building));
+    buildings = [];
+    
+    // Clear STL objects
+    stlObjects.forEach(obj => scene.remove(obj.mesh));
+    stlObjects = [];
+    
+    // Clear current drawing
+    if (currentDrawing) {
+        scene.remove(currentDrawing);
+        currentDrawing = null;
+    }
+    
+    // Clear ground, grid, and axes
+    if (ground) {
+        scene.remove(ground);
+        ground = null;
+    }
+    
+    if (gridHelper) {
+        scene.remove(gridHelper);
+        gridHelper = null;
+    }
+    
+    scene.children.forEach(child => {
+        // Hide global axes (child.userData && child.userData.type === 'axes')
+        if (child.userData && child.userData.type === 'axes') {
+            child.visible = false;
+        }
+    });
+    
+    // Disable grid and global axis checkboxes
+    document.getElementById('grid-toggle').checked = false;
+    document.getElementById('global-axis-toggle').checked = false;
+    
+    // Update UI
+    updateSTLObjectsList();
+    
+    console.log('🧹 Scene reset - all objects cleared including ground, grid, and axes');
+}
+
+function exportSTL() {
+    if (stlObjects.length === 0) {
+        alert('No STL objects to export');
+        return;
+    }
+    
+    // Show loading overlay
+    showLoading('Exporting STL file...');
+    
+    // Use setTimeout to allow the loading overlay to appear
+    setTimeout(() => {
+        try {
+            // Create a group with all STL objects
+            const group = new THREE.Group();
+            stlObjects.forEach(obj => {
+                group.add(obj.mesh.clone());
+            });
+            
+            // Export the group as STL
+            const exporter = new THREE.STLExporter();
+            const stlString = exporter.parse(group);
+            
+            const blob = new Blob([stlString], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'exported-scene.stl';
+            a.click();
+            
+            console.log('📁 STL file exported');
+        } catch (error) {
+            console.error('Error exporting STL file:', error);
+            alert('Error exporting STL file. Please try again.');
+        } finally {
+            hideLoading();
+        }
+    }, 100);
 }
 
 // Initialize the application

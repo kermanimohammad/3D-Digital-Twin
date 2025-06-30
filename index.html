@@ -20,6 +20,12 @@
             <button class="tool-btn" id="location-tool" title="Location Settings">
                 <span class="tool-icon">📍</span>
             </button>
+            <button class="tool-btn" id="stl-tool" title="STL Import/Export">
+                <span class="tool-icon">📁</span>
+            </button>
+            <button class="tool-btn" id="camera-tool" title="Camera Navigation">
+                <span class="tool-icon">📷</span>
+            </button>
             <button class="tool-btn" id="settings-tool" title="Settings">
                 <span class="tool-icon">⚙️</span>
             </button>
@@ -103,6 +109,76 @@
             </div>
         </div>
 
+        <div class="panel">
+            <h2>STL Import/Export</h2>
+            <div class="form-group">
+                <label for="stl-scale">Scale Factor:</label>
+                <input type="number" id="stl-scale" min="0.1" max="10" value="1" step="0.1">
+            </div>
+            <div class="form-group">
+                <label for="stl-color">STL Color:</label>
+                <input type="color" id="stl-color" value="#808080">
+            </div>
+            <div class="form-group">
+                <label>Rotation (degrees):</label>
+                <div class="rotation-controls">
+                    <div class="rotation-axis">
+                        <label for="stl-rotation-x">X:</label>
+                        <input type="range" id="stl-rotation-x" min="0" max="360" value="270" step="1">
+                        <input type="number" id="stl-rotation-x-number" min="0" max="360" value="270" step="1">
+                    </div>
+                    <div class="rotation-axis">
+                        <label for="stl-rotation-y">Y:</label>
+                        <input type="range" id="stl-rotation-y" min="0" max="360" value="0" step="1">
+                        <input type="number" id="stl-rotation-y-number" min="0" max="360" value="0" step="1">
+                    </div>
+                    <div class="rotation-axis">
+                        <label for="stl-rotation-z">Z:</label>
+                        <input type="range" id="stl-rotation-z" min="0" max="360" value="0" step="1">
+                        <input type="number" id="stl-rotation-z-number" min="0" max="360" value="0" step="1">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Position (units):</label>
+                <div class="position-controls">
+                    <div class="position-axis">
+                        <label for="stl-position-x">X:</label>
+                        <input type="number" id="stl-position-x-number" value="0" step="1">
+                    </div>
+                    <div class="position-axis">
+                        <label for="stl-position-y">Y:</label>
+                        <input type="number" id="stl-position-y-number" value="0" step="1">
+                    </div>
+                    <div class="position-axis">
+                        <label for="stl-position-z">Z:</label>
+                        <input type="number" id="stl-position-z-number" value="0" step="1">
+                    </div>
+                </div>
+            </div>
+            <div class="export-import">
+                <button id="import-stl">Import STL</button>
+                <input type="file" id="stl-file-input" accept=".stl" style="display: none;">
+                <button id="export-stl">Export STL</button>
+            </div>
+            <div class="form-group">
+                <label for="stl-objects">Imported STL Objects:</label>
+                <div id="stl-objects-list" class="stl-objects-list">
+                    <p>No STL objects imported yet</p>
+                </div>
+                <div class="category-controls" style="display: none;">
+                    <button onclick="expandAllCategories()" class="expand-all-btn">Expand All</button>
+                    <button onclick="collapseAllCategories()" class="collapse-all-btn">Collapse All</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="stl-layers">STL Categories:</label>
+                <div id="stl-layers-list" class="stl-layers-list">
+                    <p>No categories detected</p>
+                </div>
+            </div>
+        </div>
+
         <div class="panel" id="camera-panel">
             <h2>Camera Navigation</h2>
             <div class="camera-controls">
@@ -158,6 +234,15 @@
                 <label for="grid-toggle">Show Grid:</label>
                 <input type="checkbox" id="grid-toggle" checked>
             </div>
+            <div class="form-group">
+                <label for="fog-toggle">Enable Fog:</label>
+                <input type="checkbox" id="fog-toggle" checked>
+            </div>
+            <div class="form-group">
+                <label for="fog-distance">Fog Density:</label>
+                <input type="range" id="fog-distance" min="0.0001" max="0.03" value="0.0008" step="0.0001">
+                <span id="fog-distance-value">0.0008</span>
+            </div>
         </div>
     </div>
 
@@ -170,9 +255,19 @@
         </div>
     </div>
 
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" style="display: none;">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Processing STL file...</div>
+        </div>
+    </div>
+
     <!-- Three.js and dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
     
     <!-- Main application script -->
     <script src="app.js"></script>
